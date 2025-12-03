@@ -1,0 +1,81 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Class Pelapor
+model Pelapor {
+  id             String    @id @default(uuid()) 
+  deviceId       String    @unique              
+  lastReportTime DateTime  @default(now())      
+  
+  //  Satu pelapor bisa punya banyak laporan dan komentar
+  laporan        Laporan[]
+  komentar       Komentar[]
+}
+
+
+//  Class Laporan
+model Laporan {
+  id        String   @id @default(uuid())
+  judul     String
+  deskripsi String
+  kategori  String
+  lokasi    String
+  foto      String?
+  status    String   @default("Pending")
+  createdAt DateTime @default(now())
+  
+  pelaporId String
+  pelapor   Pelapor @relation(fields: [pelaporId], references: [id])
+  
+  komentar  Komentar[]
+  likes     Like[]     
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  laporanId String
+  laporan   Laporan @relation(fields: [laporanId], references: [id])
+
+  deviceId  String
+
+  @@unique([laporanId, deviceId]) 
+}
+
+//  Class Komentar
+model Komentar {
+  id          String   @id @default(uuid())
+  isi         String
+  createdAt   DateTime @default(now())
+
+  // Relasi ke Laporan
+  laporanId   String
+  laporan     Laporan @relation(fields: [laporanId], references: [id])
+
+  // Relasi ke Pelapor 
+  pelaporId   String
+  pelapor     Pelapor @relation(fields: [pelaporId], references: [id])
+
+  // Self-Relation untuk Balasan Komentar 
+  parentId    String? 
+  parent      Komentar?  @relation("BalasanKomentar", fields: [parentId], references: [id])
+  balasan     Komentar[] @relation("BalasanKomentar")
+}
+
+// Class Admin
+model Admin {
+  id       String @id @default(uuid())
+  nama     String
+  username String @unique
+  password String
+  role     String @default("moderator")
+}
