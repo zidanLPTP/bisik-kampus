@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import {prisma} from "@/lib/prisma"; 
+import { prisma } from "@/lib/prisma"; // Pastikan file src/lib/prisma.ts ada
 import { CreateLaporanUseCase } from "@/core/usecases/CreateLaporanUseCase";
 import { PrismaLaporanRepository } from "@/infrastructure/repositories/PrismaLaporanRepository";
 import { PrismaPelaporRepository } from "@/infrastructure/repositories/PrismaPelaporRepository";
@@ -9,11 +9,82 @@ const laporanRepo = new PrismaLaporanRepository();
 const pelaporRepo = new PrismaPelaporRepository();
 const createLaporanUseCase = new CreateLaporanUseCase(laporanRepo, pelaporRepo);
 
-// 1. WAJIB: Paksa Dinamis (Biar gak kena cache foto lama)
+// 1. WAJIB: Paksa Dinamis (Agar data selalu fresh & tidak nyangkut)
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// HANDLE POST (Tetap sama, untuk buat laporan)
+// === GET: UNTUK MENAMPILKAN DATA DI DASHBOARD ===
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status"); // Contoh: "Pending", "Ditanggapi", "Ditolak"
+
+  try {
+    let data;
+
+    if (status) {
+      // LOGIC ADMIN: Ambil data sesuai status yang diminta Dashboard
+      data = await prisma.laporan.findMany({
+        where: { 
+            status: status // 👈 KUNCI: Filter sesuai tab yang diklik admin
+        },
+        orderBy: {
+            createdAt: 'desc' // Urutkan dari yang paling baru masuk
+        },
+        // Include relasi agar tabel tidak error (butuh nama pelapor/foto)
+        include: {
+            pelapor: true,
+            komentar: true, 
+            likes: true
+        }
+      });
+    } else {
+      // Jaga-jaga kalau dipanggil tanpa status, ambil semua
+      data = await prisma.laporan.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { pelapor: true }
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: data
+    });
+
+  } catch (error) {
+    console.error("Error GET Admin:", error);
+    return NextResponse.json({ success: false, data: [] });
+  }
+}
+
+// === PATCH: UNTUK EKSEKUSI MODERASI (TERIMA / TOLAK) ===
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, status } = body; // Admin kirim ID Laporan & Status Baru (misal: "Ditanggapi" atau "Ditolak")
+
+    if (!id || !status) {
+        return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
+    }
+
+    // Update status di database
+    const updatedLaporan = await prisma.laporan.update({
+        where: { id: id }, // Cari laporan berdasarkan ID
+        data: { status: status } // Ubah statusnya
+    });
+
+    return NextResponse.json({ 
+        success: true, 
+        message: `Status berhasil diubah menjadi ${status}`,
+        data: updatedLaporan 
+    });
+
+  } catch (error: any) {
+    console.error("Error Moderasi:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// === POST: UNTUK INPUT LAPORAN BARU (Biarkan saja) ===
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -34,31 +105,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: laporanBaru }, { status: 201 });
   } catch (error: any) {
-    console.error("API Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 400 });
-  }
-}
-
-// HANDLE GET (INI YANG KITA PERBAIKI TOTAL)
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status"); // Ambil param ?status=...
-
-  try {
-    // Logic Admin: Ambil data sesuai status yang diminta dashboard
-    // Kita pakai prisma langsung biar bypass logic repository public
-    const data = await prisma.laporan.findMany({
-      where: status ? { status: status } : {}, // Kalau ada status, filter. Kalau gak, ambil semua.
-      orderBy: {
-        createdAt: 'desc' // Urutkan dari yang terbaru
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: data
-    });
-  } catch (error) {
-    return NextResponse.json({ success: false, data: [] });
   }
 }
