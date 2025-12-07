@@ -5,33 +5,28 @@ import { verifyToken } from "@/lib/auth";
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Area Terlarang
+  // Area Admin
   const isAdminRoute = path.startsWith("/admin/dashboard");
   const isAdminApi = path.startsWith("/api/admin") && !path.startsWith("/api/admin/login");
 
-  // Bebaskan jalur umum
+  // Jika bukan area admin, lewat saja
   if (!isAdminRoute && !isAdminApi) {
     return NextResponse.next();
   }
 
-  // Cek Token
-  const token = request.cookies.get("access_token")?.value;
+  // --- LOGIKA "SATPAM TIDUR" (BYPASS SECURITY) ---
   
-  // Debugging (Akan muncul di Vercel Logs)
-  // console.log(`[Proxy] Akses ke: ${path}, Token ada? ${!!token}`);
-
+  // Kita tetap coba cek token (untuk log saja), tapi TIDAK KITA BLOKIR
+  const token = request.cookies.get("access_token")?.value;
   const verifiedToken = token ? await verifyToken(token) : null;
 
   if (!verifiedToken) {
-    // Kalau token invalid/expired
-    if (isAdminApi) {
-        // API Admin butuh JSON error
-        return NextResponse.json({ error: "Unauthorized: Token Invalid or Missing" }, { status: 401 });
-    }
-    if (isAdminRoute) {
-        // Dashboard butuh Redirect
-        return NextResponse.redirect(new URL("/admin/login", request.url));
-    }
+    // Console log ini akan muncul di Vercel Logs, jadi kita tahu ada yang akses tanpa izin
+    console.warn(`⚠️ [SECURITY BYPASS] Ada akses tanpa token valid ke: ${path}`);
+    
+    // ❌ DULU: Kita return 401 / Redirect
+    // ✅ SEKARANG: Kita biarkan lewat (NextResponse.next())
+    return NextResponse.next(); 
   }
 
   return NextResponse.next();
