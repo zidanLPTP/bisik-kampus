@@ -192,7 +192,6 @@ export default function HomePage() {
             {/* Empty State */}
             {!loading && laporanList.length === 0 && (
                 <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
-                    <div className="text-6xl mb-4">👻</div>
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white">Sepi banget...</h3>
                     <p className="text-gray-500 mb-6">Belum ada yang berani speak up.</p>
                     <Link href="/buat-laporan" className="text-[#5D3891] font-bold underline">Jadilah yang pertama!</Link>
