@@ -6,10 +6,9 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  url       = env("POSTGRES_PRISMA_URL") // Vercel nanti otomatis isi ini
+  directUrl = env("POSTGRES_URL_NON_POOLING") // Wajib untuk migrasi Vercel
 }
-
 
 // Class Pelapor
 model Pelapor {
