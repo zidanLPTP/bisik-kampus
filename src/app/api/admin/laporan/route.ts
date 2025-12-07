@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     const data = await prisma.laporan.findMany({
       where: status ? { status: status } : {}, // Kalau ada status, filter. Kalau gak, ambil semua.
       orderBy: {
-        tanggal: 'desc' // Urutkan dari yang terbaru
+        createdAt: 'desc' // Urutkan dari yang terbaru
       }
     });
 
